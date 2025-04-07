@@ -1,30 +1,26 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
-interface LoginForm {
-  email: string;
-  password: string;
-}
+import { motion } from 'framer-motion';
 
 const Login: React.FC = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = React.useState<string | null>(null);
 
-  const onSubmit = async (data: LoginForm) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      await login(data.email, data.password);
-      navigate('/'); 
+      await login(email, password);
+      navigate('/appointment');
     } catch (err: unknown) {
-        if (err instanceof Error) {
-            setError(err.message || 'Error al iniciar sesión');
-        } else {
-            setError('Error al iniciar sesión');
-        }
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error inesperado. Por favor, inténtelo de nuevo más tarde.');
+      }
     }
   };
 
@@ -42,24 +38,26 @@ const Login: React.FC = () => {
         </motion.div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
-                {...register('email', { required: true })}
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                required
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">Este campo es requerido</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
               <input
-                {...register('password', { required: true })}
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                required
               />
-              {errors.password && <p className="text-red-500 text-sm mt-1">Este campo es requerido</p>}
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <motion.button

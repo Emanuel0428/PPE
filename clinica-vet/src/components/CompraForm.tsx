@@ -23,11 +23,23 @@ const CompraForm: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const parsedFormData = {
+      ...formData,
+      cita_id: parseInt(formData.cita_id, 10),
+    };
+
+    if (isNaN(parsedFormData.cita_id)) {
+      alert('El ID de la cita debe ser un número válido');
+      return;
+    }
+
+    console.log('Datos enviados a /api/compras:', parsedFormData);
+
     try {
       const response = await fetch('http://localhost:5000/api/compras', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(parsedFormData),
       });
       if (response.ok) {
         alert('Compra simulada registrada con éxito');

@@ -1,68 +1,60 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../api';
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
-
 interface AuthContextType {
-  user: User | null;
+  user: { id: number; name: string; email: string } | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  register: (name: string, email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+      api.get('/users/me', {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((response) => setUser(response.data))
+        .catch(() => {
+          setToken(null);
+          localStorage.removeItem('token');
+        });
     }
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await api.post('/users/login', { email, password });
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            throw new Error(error.message || 'Error al iniciar sesión');
-        } else {
-            throw new Error('Error al iniciar sesión');
-        }
-    }
-  };
-
-  const register = async (name: string, email: string, password: string) => {
-    try {
-      const response = await api.post('/users/register', { name, email, password });
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-    } catch (error: unknown) {
-        if (error instanceof Error) {
-            throw new Error(error.message || 'Error al registrar usuario');
-        } else {
-            throw new Error('Error al registrar usuario');
-        }
-    }
+    const response = await api.post('/users/login', { email, password });
+    const { id, name, email: userEmail, token: newToken } = response.data;
+    setUser({ id, name, email: userEmail });
+    setToken(newToken);
+    localStorage.setItem('token', newToken);
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    setToken(null);
+    localStorage.removeItem('token');
+  };
+
+  const register = async (name: string, email: string, password: string) => {
+    await api.post('/users/register', { name, email, password });
+    await login(email, password); 
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

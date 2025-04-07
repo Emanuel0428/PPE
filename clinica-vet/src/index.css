@@ -145,3 +145,33 @@
 .button-effect {
   @apply transition-all duration-300 hover:shadow-lg active:scale-95;
 }
+
+/* Suavizar sombras y transiciones */
+input, select, textarea {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+/* Navbar translúcido */
+nav.bg-white {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Gradiente más sutil */
+.gradient-bg {
+  background: linear-gradient(135deg, #f0f9ff 0%, #f9f0ff 50%, #fff5e6 100%);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+/* Efecto hover en botones */
+.button-effect {
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+.button-effect:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}

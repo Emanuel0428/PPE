@@ -90,7 +90,7 @@ const Hero: React.FC = () => {
               transition={{ delay: 0.5 }}
             />
             <img
-              src="https://images.unsplash.com/photo-1587764379873-97837921fd44?auto=format&fit=crop&w=800&q=80"
+              src="https://i.postimg.cc/J0LtCgpZ/Veterinaria-Smart-Care.webp?auto=format&fit=crop&w=800&q=80"
               alt="Veterinario con perro"
               className="w-100 rounded-[2.5rem] transform hover:scale-105 transition-transform duration-700"
             />

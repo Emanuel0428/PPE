@@ -20,7 +20,11 @@ interface AppointmentForm {
 }
 
 const Appointment: React.FC = () => {
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm<AppointmentForm>();
+  const { register, handleSubmit, formState: { errors }, setValue, reset, trigger } = useForm<AppointmentForm>({
+    defaultValues: {
+      total: 0,
+    },
+  });
   const [step, setStep] = useState(1);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -34,7 +38,9 @@ const Appointment: React.FC = () => {
   ];
 
   const onSubmit = async (data: AppointmentForm) => {
-    if (!user) {
+    console.log('onSubmit ejecutado con datos:', data);
+    console.log('Usuario actual:', user);
+    if (!user || !user.id) {
       alert('Por favor, inicia sesión para reservar una cita');
       navigate('/login');
       return;
@@ -42,7 +48,7 @@ const Appointment: React.FC = () => {
 
     try {
       if (step <= 3) {
-        // Crear paciente
+        console.log('Paso 1-3: Creando paciente y cita');
         const patientResponse = await api.post('/patients', {
           user_id: user.id,
           name: data.petName,
@@ -50,10 +56,10 @@ const Appointment: React.FC = () => {
           breed: '',
           birth_date: '',
         });
+        console.log('Respuesta de /patients:', patientResponse.data);
 
         const patientId = patientResponse.data.id;
 
-        // Crear cita
         const appointmentResponse = await api.post('/appointments', {
           user_id: user.id,
           patient_id: patientId,
@@ -62,28 +68,58 @@ const Appointment: React.FC = () => {
           service_type: data.service || 'Consulta',
           reason: data.reason,
         });
+        console.log('Respuesta de /appointments:', appointmentResponse.data);
 
-        setAppointmentId(appointmentResponse.data.id);
+        const newAppointmentId = appointmentResponse.data.id;
+        setAppointmentId(newAppointmentId);
         alert('Cita creada con éxito. Ahora selecciona el pago.');
         setStep(4);
       } else if (step === 4) {
-        // Registrar la compra
-        await api.post('/compras', {
+        console.log('Paso 4: Registrando compra');
+        if (!appointmentId) {
+          setError('No se ha creado una cita válida. Por favor, reinicia el proceso.');
+          return;
+        }
+
+        if (!data.service || !data.payment_methods || !data.total) {
+          setError('Por favor, completa todos los campos de pago.');
+          return;
+        }
+
+        const purchaseResponse = await api.post('/api/compras', {
           cita_id: appointmentId,
           payment_methods: data.payment_methods,
           total: data.total,
           service: data.service,
         });
+        console.log('Respuesta de /api/compras:', purchaseResponse.data);
 
         alert('Cita y compra registradas con éxito');
+        reset();
         setStep(1);
         setAppointmentId(null);
+        setError(null);
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || 'Error al procesar la solicitud');
+      const errorMessage = (err as Error).message || 'Error desconocido';
+      setError(errorMessage);
+      console.error('Error en el proceso:', errorMessage);
+    }
+  };
+
+  const handleNextStep = async () => {
+    const fieldsToValidate: { [key in 1 | 2 | 3]: readonly (keyof AppointmentForm)[] } = {
+      1: ['name', 'phone'],
+      2: ['date', 'time'],
+      3: ['petName', 'petType', 'reason'],
+    };
+
+    if (step < 4) {
+      const isValid = await trigger(fieldsToValidate[step as 1 | 2 | 3]);
+      if (isValid) {
+        setStep(step + 1);
       } else {
-        setError('Error al procesar la solicitud');
+        console.log('Validación fallida en paso', step, errors);
       }
     }
   };
@@ -98,11 +134,11 @@ const Appointment: React.FC = () => {
   const handleServicioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const servicioSeleccionado = servicios.find((s) => s.nombre === e.target.value);
     setValue('service', e.target.value);
-    setValue('total', servicioSeleccionado?.precio || 0);
+    setValue('total', servicioSeleccionado?.precio ?? 0);
   };
 
   return (
-    <section id="reservar" className="py-20 px-4 pt-20">
+    <section id="reservar" className="py-20 px-4 pt-20 bg-gray-50">
       <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -123,7 +159,7 @@ const Appointment: React.FC = () => {
             {steps.map((s, index) => {
               const Icon = s.icon;
               return (
-                <div key={s.number} className="flex items-center">
+                <div key={s.number} className="flex items-center relative group">
                   <motion.div
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -134,6 +170,9 @@ const Appointment: React.FC = () => {
                   >
                     <Icon className="w-6 h-6" />
                   </motion.div>
+                  <div className="absolute top-14 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-sm rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {s.title}
+                  </div>
                   {index < steps.length - 1 && (
                     <div
                       className={`h-1 w-24 mx-4 ${
@@ -346,7 +385,7 @@ const Appointment: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type={step === 4 ? 'submit' : 'button'}
-                onClick={() => step < 4 ? setStep(step + 1) : null}
+                onClick={step < 4 ? handleNextStep : undefined}
                 className="ml-auto px-6 py-3 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700"
               >
                 {step === 4 ? 'Confirmar Compra' : 'Siguiente'}
