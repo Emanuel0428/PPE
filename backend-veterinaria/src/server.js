@@ -6,14 +6,17 @@ const UserModel = require('./models/UserModel');
 const PatientModel = require('./models/PatientModel');
 const AppointmentModel = require('./models/AppointmentModel');
 const MessageModel = require('./models/MessageModel');
+const PurchaseModel = require('./models/PurchaseModel'); // Agregamos PurchaseModel
 const UserController = require('./controllers/UserController');
 const PatientController = require('./controllers/PatientController');
 const AppointmentController = require('./controllers/AppointmentController');
 const MessageController = require('./controllers/MessageController');
+const PurchaseController = require('./controllers/PurchaseController'); // Agregamos PurchaseController
 const userRoutes = require('./routes/userRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const messageRoutes = require('./routes/messageRoutes');
+const purchaseRoutes = require('./routes/purchaseRoutes');
 
 dotenv.config();
 
@@ -21,9 +24,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: 'http://localhost:5173', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  allowedHeaders: ['Content-Type', 'Authorization'], 
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());
@@ -36,16 +39,19 @@ app.use(express.json());
     const patientModel = new PatientModel(db);
     const appointmentModel = new AppointmentModel(db);
     const messageModel = new MessageModel(db);
+    const purchaseModel = new PurchaseModel(db);
 
     const userController = new UserController(userModel);
     const patientController = new PatientController(patientModel);
     const appointmentController = new AppointmentController(appointmentModel);
     const messageController = new MessageController(messageModel);
+    const purchaseController = new PurchaseController(purchaseModel); 
 
     app.use('/api/users', userRoutes(userController));
     app.use('/api/patients', patientRoutes(patientController));
     app.use('/api/appointments', appointmentRoutes(appointmentController));
     app.use('/api/messages', messageRoutes(messageController));
+    app.use('/api', purchaseRoutes(purchaseController));
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

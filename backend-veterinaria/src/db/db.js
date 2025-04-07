@@ -3,7 +3,7 @@ const { open } = require('sqlite');
 
 async function initDb() {
   const db = await open({
-    filename: './vetcare.db',
+    filename: './SmartCareVet.db',
     driver: sqlite3.Database,
   });
 
@@ -40,6 +40,18 @@ async function initDb() {
       status TEXT DEFAULT 'pending',
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (patient_id) REFERENCES patients(id)
+    )
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS purchase (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cita_id INTEGER NOT NULL,
+      payment_methods TEXT NOT NULL,
+      total REAL NOT NULL,
+      service TEXT NOT NULL,
+      date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (cita_id) REFERENCES appointments(id)
     )
   `);
 

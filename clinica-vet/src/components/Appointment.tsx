@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, Phone, MessageSquare, PawPrint } from 'lucide-react';
+import { Calendar, Clock, User, Phone, MessageSquare, PawPrint, CreditCard } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -14,14 +14,24 @@ interface AppointmentForm {
   petName: string;
   petType: string;
   reason: string;
+  service?: string;
+  payment_methods?: string;
+  total?: number;
 }
 
 const Appointment: React.FC = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm<AppointmentForm>();
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm<AppointmentForm>();
   const [step, setStep] = useState(1);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [appointmentId, setAppointmentId] = useState<number | null>(null);
+
+  const servicios = [
+    { nombre: 'Consulta general', precio: 30 },
+    { nombre: 'Vacunación', precio: 20 },
+    { nombre: 'Cirugía menor', precio: 100 },
+  ];
 
   const onSubmit = async (data: AppointmentForm) => {
     if (!user) {
@@ -31,35 +41,49 @@ const Appointment: React.FC = () => {
     }
 
     try {
-      // Crear paciente
-      const patientResponse = await api.post('/patients', {
-        user_id: user.id, 
-        name: data.petName,
-        species: data.petType,
-        breed: '',
-        birth_date: '',
-      });
+      if (step <= 3) {
+        // Crear paciente
+        const patientResponse = await api.post('/patients', {
+          user_id: user.id,
+          name: data.petName,
+          species: data.petType,
+          breed: '',
+          birth_date: '',
+        });
 
-      const patientId = patientResponse.data.id;
+        const patientId = patientResponse.data.id;
 
-      // Crear cita
-      await api.post('/appointments', {
-        user_id: user.id, 
-        patient_id: patientId,
-        date: data.date,
-        time: data.time,
-        service_type: 'Consulta',
-        reason: data.reason,
-      });
+        // Crear cita
+        const appointmentResponse = await api.post('/appointments', {
+          user_id: user.id,
+          patient_id: patientId,
+          date: data.date,
+          time: data.time,
+          service_type: data.service || 'Consulta',
+          reason: data.reason,
+        });
 
-      alert('Cita reservada con éxito');
-      setStep(1); 
+        setAppointmentId(appointmentResponse.data.id);
+        alert('Cita creada con éxito. Ahora selecciona el pago.');
+        setStep(4);
+      } else if (step === 4) {
+        // Registrar la compra
+        await api.post('/compras', {
+          cita_id: appointmentId,
+          payment_methods: data.payment_methods,
+          total: data.total,
+          service: data.service,
+        });
+
+        alert('Cita y compra registradas con éxito');
+        setStep(1);
+        setAppointmentId(null);
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message || 'Error al reservar la cita');
-      }
-      else {
-        setError('Error al reservar la cita');
+        setError(err.message || 'Error al procesar la solicitud');
+      } else {
+        setError('Error al procesar la solicitud');
       }
     }
   };
@@ -68,7 +92,14 @@ const Appointment: React.FC = () => {
     { number: 1, title: 'Datos Personales', icon: User },
     { number: 2, title: 'Fecha y Hora', icon: Calendar },
     { number: 3, title: 'Información Mascota', icon: PawPrint },
+    { number: 4, title: 'Pago', icon: CreditCard },
   ];
+
+  const handleServicioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const servicioSeleccionado = servicios.find((s) => s.nombre === e.target.value);
+    setValue('service', e.target.value);
+    setValue('total', servicioSeleccionado?.precio || 0);
+  };
 
   return (
     <section id="reservar" className="py-20 px-4 pt-20">
@@ -104,9 +135,11 @@ const Appointment: React.FC = () => {
                     <Icon className="w-6 h-6" />
                   </motion.div>
                   {index < steps.length - 1 && (
-                    <div className={`h-1 w-24 mx-4 ${
-                      step > s.number ? 'bg-primary-600' : 'bg-gray-200'
-                    }`} />
+                    <div
+                      className={`h-1 w-24 mx-4 ${
+                        step > s.number ? 'bg-primary-600' : 'bg-gray-200'
+                      }`}
+                    />
                   )}
                 </div>
               );
@@ -242,6 +275,59 @@ const Appointment: React.FC = () => {
               </motion.div>
             )}
 
+            {step === 4 && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Servicio
+                  </label>
+                  <select
+                    {...register('service', { required: true })}
+                    onChange={handleServicioChange}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-700"
+                  >
+                    <option value="">Seleccione un servicio</option>
+                    {servicios.map((servicio) => (
+                      <option key={servicio.nombre} value={servicio.nombre}>
+                        {servicio.nombre} - ${servicio.precio}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.service && <p className="text-red-500 text-sm mt-1">Este campo es requerido</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Método de Pago
+                  </label>
+                  <select
+                    {...register('payment_methods', { required: true })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-700"
+                  >
+                    <option value="">Seleccione método</option>
+                    <option value="tarjeta">Tarjeta de Crédito/Débito</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                  </select>
+                  {errors.payment_methods && <p className="text-red-500 text-sm mt-1">Este campo es requerido</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Total
+                  </label>
+                  <input
+                    type="text"
+                    {...register('total', { required: true })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-gray-700 font-semibold"
+                    readOnly
+                  />
+                </div>
+              </motion.div>
+            )}
+
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <div className="flex justify-between mt-8">
@@ -259,11 +345,11 @@ const Appointment: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                type="button"
-                onClick={() => step < 3 ? setStep(step + 1) : handleSubmit(onSubmit)()}
+                type={step === 4 ? 'submit' : 'button'}
+                onClick={() => step < 4 ? setStep(step + 1) : null}
                 className="ml-auto px-6 py-3 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700"
               >
-                {step === 3 ? 'Reservar Cita' : 'Siguiente'}
+                {step === 4 ? 'Confirmar Compra' : 'Siguiente'}
               </motion.button>
             </div>
           </form>
