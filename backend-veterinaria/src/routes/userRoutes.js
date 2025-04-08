@@ -5,6 +5,7 @@ const userRoutes = (userController) => {
 
   router.post('/register', (req, res) => userController.register(req, res));
   router.post('/login', (req, res) => userController.login(req, res));
+  router.get('/me', (req, res) => userController.getMe(req, res)); // Nueva ruta
   router.get('/:id', (req, res) => userController.getUser(req, res));
   router.put('/:id', (req, res) => userController.updateUser(req, res));
   router.delete('/:id', (req, res) => userController.deleteUser(req, res));

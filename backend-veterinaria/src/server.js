@@ -46,7 +46,7 @@ app.use(express.json());
     const patientController = new PatientController(patientModel);
     const appointmentController = new AppointmentController(appointmentModel);
     const messageController = new MessageController(messageModel);
-    const purchaseController = new PurchaseController(purchaseModel);
+    const purchaseController = new PurchaseController(purchaseModel, appointmentModel); // Inyectamos appointmentModel
 
     app.use('/api/users', userRoutes(userController));
     app.use('/api/patients', authMiddleware, patientRoutes(patientController));

@@ -5,7 +5,6 @@ import Hero from './components/Hero';
 import Services from './components/Services';
 import Testimonials from './components/Testimonials';
 import Appointment from './components/Appointment';
-import Contact from './components/Contact';
 import Login from './components/Login';
 import Register from './components/Register';
 
@@ -20,7 +19,6 @@ function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/testimonials" element={<Testimonials />} />
             <Route path="/appointment" element={<Appointment />} />
-            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>
