@@ -6,13 +6,13 @@ class PatientController {
     async create(req, res) {
       try {
         const { user_id, name, species, breed, birth_date } = req.body;
-        if (!user_id || !name || !species) {
+        if (!user_id || !name || !species || !breed || !birth_date) {
           return res.status(400).json({ error: 'Faltan campos requeridos' });
         }
-  
         const patientId = await this.patientModel.create({ user_id, name, species, breed, birth_date });
         res.status(201).json({ id: patientId, user_id, name, species, breed, birth_date });
       } catch (error) {
+        console.error('Error creando el paciente:', error);
         res.status(500).json({ error: 'Error al crear paciente' });
       }
     }

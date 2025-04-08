@@ -26,12 +26,14 @@ const Navbar: React.FC = () => {
           <Link to="/appointment" className="text-gray-600 hover:text-primary-600 transition duration-300">
             Reservar Cita
           </Link>
-          <Link to="/contact" className="text-gray-600 hover:text-primary-600 transition duration-300">
-            Contacto
-          </Link>
+          {user && (
+            <Link to="/my-appointments" className="text-gray-600 hover:text-primary-600 transition duration-300">
+              Mis Citas
+            </Link>
+          )}
           {user ? (
             <>
-              <span className="text-gray-600">Hola, {user.name}</span>
+              <span className="text-gray-600 hover:text-primary-600">Hola, {user.name}</span>
               <button
                 onClick={logout}
                 className="text-gray-600 hover:text-primary-600 transition duration-300"

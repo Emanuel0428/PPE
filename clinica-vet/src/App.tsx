@@ -7,6 +7,7 @@ import Testimonials from './components/Testimonials';
 import Appointment from './components/Appointment';
 import Login from './components/Login';
 import Register from './components/Register';
+import MyAppointments from './components/MyAppointments';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/testimonials" element={<Testimonials />} />
             <Route path="/appointment" element={<Appointment />} />
+            <Route path="/my-appointments" element={<MyAppointments />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>

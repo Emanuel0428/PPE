@@ -5,11 +5,10 @@ class AppointmentController {
   
     async create(req, res) {
       try {
-        const { user_id, patient_id, date, time, service_type, reason } = req.body;
-        if (!user_id || !patient_id || !date || !time || !service_type) {
+        const { user_id, patient_id, date, time, service_type, reason, status } = req.body;
+        if (!user_id || !patient_id || !date || !time || !service_type || !reason || !status) {
           return res.status(400).json({ error: 'Faltan campos requeridos' });
         }
-  
         const appointmentId = await this.appointmentModel.create({
           user_id,
           patient_id,
@@ -17,9 +16,11 @@ class AppointmentController {
           time,
           service_type,
           reason,
+          status,
         });
-        res.status(201).json({ id: appointmentId, user_id, patient_id, date, time, service_type, reason });
+        res.status(201).json({ id: appointmentId, user_id, patient_id, date, time, service_type, reason, status });
       } catch (error) {
+        console.error('Error en create appointment:', error);
         res.status(500).json({ error: 'Error al crear cita' });
       }
     }

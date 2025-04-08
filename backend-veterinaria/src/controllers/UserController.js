@@ -55,15 +55,14 @@ class UserController {
       if (!token) {
         return res.status(401).json({ error: 'No se proporcionó token' });
       }
-
-      const decoded = jwt.verify(token, this.secretKey);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await this.userModel.findById(decoded.id);
       if (!user) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
       }
-
       res.json({ id: user.id, name: user.name, email: user.email });
     } catch (error) {
+      console.error('Error en getMe:', error);
       res.status(401).json({ error: 'Token inválido o expirado' });
     }
   }

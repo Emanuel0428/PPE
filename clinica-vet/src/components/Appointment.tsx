@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, Phone, PawPrint, CreditCard } from 'lucide-react';
+import { Calendar, Clock, User, Phone, PawPrint, CreditCard, CheckCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -13,18 +13,25 @@ interface AppointmentForm {
   time: string;
   petName: string;
   petType: string;
+  breed: string;
+  birthDate: string;
   reason: string;
   service: string;
+  status: string;
   paymentMethod: string;
   total: number;
+  purchaseDate: string;
 }
 
 const Appointment: React.FC = () => {
   const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<AppointmentForm>({
-    defaultValues: { total: 0 },
+    defaultValues: { total: 0, status: 'pending' },
   });
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [patientId, setPatientId] = useState<number | null>(null);
+  const [appointmentId, setAppointmentId] = useState<number | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null); 
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -42,66 +49,83 @@ const Appointment: React.FC = () => {
     }
 
     try {
-      // Paso 1-3: Crear paciente y cita
-      if (step <= 3) {
+      if (step === 1) {
+        setStep(2);
+      } else if (step === 2) {
+        setStep(3);
+      } else if (step === 3) {
         const patientResponse = await api.post('/patients', {
           user_id: user.id,
           name: data.petName,
           species: data.petType,
-          breed: '',
-          birth_date: '',
+          breed: data.breed,
+          birth_date: data.birthDate,
         });
-
-        const patientId = patientResponse.data.id;
+        setPatientId(patientResponse.data.id);
 
         const appointmentResponse = await api.post('/appointments', {
           user_id: user.id,
-          patient_id: patientId,
+          patient_id: patientResponse.data.id,
           date: data.date,
           time: data.time,
           service_type: data.service || 'Consulta',
           reason: data.reason,
+          status: data.status,
         });
+        setAppointmentId(appointmentResponse.data.id);
 
-        const appointmentId = appointmentResponse.data.id;
-
-        if (step === 3) {
-          setStep(4);
-          setValue('service', '');
-          setValue('paymentMethod', '');
-          setValue('total', 0);
-          localStorage.setItem('appointmentId', appointmentId.toString());
-        }
-      }
-
-      // Paso 4: Registrar compra
-      if (step === 4) {
-        const appointmentId = localStorage.getItem('appointmentId');
+        setStep(4);
+        setValue('service', '');
+        setValue('paymentMethod', '');
+        setValue('total', 0);
+        setValue('purchaseDate', '');
+      } else if (step === 4) {
         if (!appointmentId) {
           setError('No se encontró una cita válida. Por favor, reinicia el proceso.');
           return;
         }
 
-        await api.post('/compras', {
-          cita_id: parseInt(appointmentId, 10),
+        console.log('Enviando solicitud de compra:', {
+          cita_id: appointmentId,
           service: data.service,
           payment_methods: data.paymentMethod,
           total: data.total,
+          date: data.purchaseDate,
         });
 
-        alert('Cita y compra registradas con éxito');
+        const purchaseResponse = await api.post('/compras', {
+          cita_id: appointmentId,
+          service: data.service,
+          payment_methods: data.paymentMethod,
+          total: data.total,
+          date: data.purchaseDate,
+        });
+
+        console.log('Respuesta de compra:', purchaseResponse.data);
+
+        setSuccessMessage(
+          `¡Cita reservada con éxito! Tu cita para ${data.petName} está programada para el ${data.date} a las ${data.time}.`
+        );
+
         reset();
         setStep(1);
-        localStorage.removeItem('appointmentId');
+        setPatientId(null);
+        setAppointmentId(null);
         setError(null);
+
+        setTimeout(() => {
+          setSuccessMessage(null);
+          navigate('/my-appointments'); 
+        }, 3000);
       }
     } catch (err: any) {
-      setError(err.message || 'Error al procesar la solicitud');
+      const errorMessage = err.response?.data?.error || err.message || 'Error desconocido al procesar la solicitud';
+      setError(`Error: ${errorMessage}`);
+      console.error('Error en onSubmit:', err);
+      if (err.response) {
+        console.log('Detalles del error del servidor:', err.response.data);
+      }
     }
-  };
-
-  const handleNextStep = () => {
-    if (step < 4) setStep(step + 1);
   };
 
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -125,9 +149,21 @@ const Appointment: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl font-bold text-gray-800 mb-4">Reserva tu Cita</h2>
+          <h2 className="text-4xl font-bold text-primary-400 mb-4">Reserva tu Cita</h2>
           <p className="text-xl text-gray-600">Agenda tu cita en pocos pasos</p>
         </motion.div>
+
+        {/* Mensaje de éxito */}
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-green-100 text-green-800 rounded-lg flex items-center justify-center"
+          >
+            <CheckCircle className="w-6 h-6 mr-2" />
+            <p>{successMessage}</p>
+          </motion.div>
+        )}
 
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex justify-between mb-6">
@@ -135,7 +171,7 @@ const Appointment: React.FC = () => {
               <div key={s.number} className="flex flex-col items-center">
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    step >= s.number ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+                    step >= s.number ? 'bg-primary-400 text-white' : 'bg-gray-200 text-gray-500'
                   }`}
                 >
                   <s.icon className="w-5 h-5" />
@@ -151,7 +187,7 @@ const Appointment: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Nombre</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <User className="absolute left-2 top-5 transform -translate-y-1/2 text-gray-400" />
                     <input
                       {...register('name', { required: 'Este campo es requerido' })}
                       className="w-full pl-10 pr-4 py-2 border rounded-lg"
@@ -163,7 +199,7 @@ const Appointment: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Teléfono</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Phone className="absolute left-2 top-5 transform -translate-y-1/2 text-gray-400" />
                     <input
                       {...register('phone', { required: 'Este campo es requerido' })}
                       className="w-full pl-10 pr-4 py-2 border rounded-lg"
@@ -201,6 +237,16 @@ const Appointment: React.FC = () => {
                     {errors.time && <p className="text-red-500 text-sm">{errors.time.message}</p>}
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Estado de la Cita</label>
+                  <select
+                    {...register('status', { required: 'Este campo es requerido' })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  >
+                    <option value="pending">Pendiente</option>
+                  </select>
+                  {errors.status && <p className="text-red-500 text-sm">{errors.status.message}</p>}
+                </div>
               </div>
             )}
 
@@ -231,6 +277,24 @@ const Appointment: React.FC = () => {
                     <option value="otro">Otro</option>
                   </select>
                   {errors.petType && <p className="text-red-500 text-sm">{errors.petType.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Raza</label>
+                  <input
+                    {...register('breed', { required: 'Este campo es requerido' })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                    placeholder="Raza de tu mascota"
+                  />
+                  {errors.breed && <p className="text-red-500 text-sm">{errors.breed.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Fecha de Nacimiento</label>
+                  <input
+                    type="date"
+                    {...register('birthDate', { required: 'Este campo es requerido' })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                  {errors.birthDate && <p className="text-red-500 text-sm">{errors.birthDate.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Motivo</label>
@@ -277,6 +341,16 @@ const Appointment: React.FC = () => {
                   {errors.paymentMethod && <p className="text-red-500 text-sm">{errors.paymentMethod.message}</p>}
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Fecha de la Compra</label>
+                  <input
+                    type="date"
+                    {...register('purchaseDate', { required: 'Este campo es requerido' })}
+                    value={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                  {errors.purchaseDate && <p className="text-red-500 text-sm">{errors.purchaseDate.message}</p>}
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Total</label>
                   <input
                     {...register('total', { required: 'Este campo es requerido' })}
@@ -300,9 +374,8 @@ const Appointment: React.FC = () => {
                 </button>
               )}
               <button
-                type={step === 4 ? 'submit' : 'button'}
-                onClick={step < 4 ? handleNextStep : undefined}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg ml-auto"
+                type="submit"
+                className="px-4 py-2 bg-primary-400 text-white rounded-lg ml-auto"
               >
                 {step === 4 ? 'Confirmar' : 'Siguiente'}
               </button>

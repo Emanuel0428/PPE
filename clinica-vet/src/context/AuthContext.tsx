@@ -22,12 +22,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (storedToken) {
-      setToken(storedToken);
       api.get('/users/me', {
         headers: { Authorization: `Bearer ${storedToken}` },
       })
-        .then((response) => setUser(response.data))
-        .catch(() => {
+        .then((response) => {
+          setUser(response.data);
+          setToken(storedToken);
+        })
+        .catch((err) => {
+          console.error('Error al verificar token:', err);
           setToken(null);
           localStorage.removeItem('token');
         });
@@ -35,11 +38,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await api.post('/users/login', { email, password });
-    const { id, name, email: userEmail, token: newToken } = response.data;
-    setUser({ id, name, email: userEmail });
-    setToken(newToken);
-    localStorage.setItem('token', newToken);
+    try {
+      const response = await api.post('/users/login', { email, password });
+      const { id, name, email: userEmail, token: newToken } = response.data;
+      setUser({ id, name, email: userEmail });
+      setToken(newToken);
+      localStorage.setItem('token', newToken);
+    } catch (err: any) {
+      throw new Error(err.response?.data?.error || 'Error al iniciar sesión');
+    }
   };
 
   const logout = () => {
@@ -49,8 +56,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const register = async (name: string, email: string, password: string) => {
-    await api.post('/users/register', { name, email, password });
-    await login(email, password); 
+    try {
+      await api.post('/users/register', { name, email, password });
+      await login(email, password);
+    } catch (err: any) {
+      throw new Error(err.response?.data?.error || 'Error al registrar usuario');
+    }
   };
 
   return (
